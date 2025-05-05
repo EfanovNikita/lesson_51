@@ -130,7 +130,7 @@ class AppStyles:
             padding=10
         ),
         "tooltip": "Записать новый api-key",
-        "width": 130,
+        "width": 200,
         "height": 40
     }
 

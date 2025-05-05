@@ -28,7 +28,6 @@ class ChatApp:
         - Система мониторинга для отслеживания производительности
         """
         # Инициализация основных компонентов
-        # self.api_client = OpenRouterClient()       # Создание клиента для работы с AI API
         self.api_client = None                     # Создание клиента для работы с AI API
         self.cache = ChatCache()                   # Инициализация системы кэширования
         self.logger = AppLogger()                  # Инициализация системы логирования
@@ -40,7 +39,6 @@ class ChatApp:
             "Баланс: Загрузка...",                # Начальный текст до загрузки реального баланса
             **AppStyles.BALANCE_TEXT               # Применение стилей из конфигурации
         )
-        # self.update_balance()                      # Первичное обновление баланса
 
         # Создание директории для экспорта истории чата
         self.exports_dir = "exports"               # Путь к директории экспорта
@@ -100,13 +98,6 @@ class ChatApp:
             setattr(page, key, value)
 
         AppStyles.set_window_size(page)    # Установка размеров окна приложения
-        
-        def init_main():
-            self.api_client = OpenRouterClient()       # Создание клиента для работы с AI API
-            self.cache = ChatCache()                   # Инициализация системы кэширования
-            self.logger = AppLogger()                  # Инициализация системы логирования
-            self.analytics = Analytics(self.cache)     # Инициализация системы аналитики с передачей кэша
-            self.monitor = PerformanceMonitor()        # Инициализация системы мониторинга
 
         async def send_message_click(e):
             """
@@ -361,7 +352,6 @@ class ChatApp:
             page.remove(self.main_column)
             auth_content()
             page.add(self.main_column)
-            
 
         def main_content():
             # Инициализация выпадающего списка для выбора модели AI
@@ -450,7 +440,6 @@ class ChatApp:
                     self.chat_history,
                     controls_column
                 ],
-                # visible=self.api_client.is_auth,
                 **AppStyles.MAIN_COLUMN               # Применение стилей к главной колонке
             )
             
@@ -508,10 +497,6 @@ class ChatApp:
             auth_content()
             page.add(self.main_column)
             return
-        
-
-        # Добавление основной колонки на страницу
-        # page.add(self.main_column)
         
         # Запуск монитора
         self.monitor.get_metrics()
