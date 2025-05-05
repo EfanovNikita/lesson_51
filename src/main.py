@@ -2,7 +2,7 @@
 import flet as ft                                  # Фреймворк для создания кроссплатформенных приложений с современным UI
 from api.openrouter import OpenRouterClient        # Клиент для взаимодействия с AI API через OpenRouter
 from ui.styles import AppStyles                    # Модуль с настройками стилей интерфейса
-from ui.components import MessageBubble, ModelSelector  # Компоненты пользовательского интерфейса
+from ui.components import MessageBubble, ModelSelector, AuthContainer  # Компоненты пользовательского интерфейса
 from utils.cache import ChatCache                  # Модуль для кэширования истории чата
 from utils.logger import AppLogger                 # Модуль для логирования работы приложения
 from utils.analytics import Analytics              # Модуль для сбора и анализа статистики использования
@@ -28,7 +28,8 @@ class ChatApp:
         - Система мониторинга для отслеживания производительности
         """
         # Инициализация основных компонентов
-        self.api_client = OpenRouterClient()       # Создание клиента для работы с AI API
+        # self.api_client = OpenRouterClient()       # Создание клиента для работы с AI API
+        self.api_client = None                     # Создание клиента для работы с AI API
         self.cache = ChatCache()                   # Инициализация системы кэширования
         self.logger = AppLogger()                  # Инициализация системы логирования
         self.analytics = Analytics(self.cache)     # Инициализация системы аналитики с передачей кэша
@@ -39,7 +40,7 @@ class ChatApp:
             "Баланс: Загрузка...",                # Начальный текст до загрузки реального баланса
             **AppStyles.BALANCE_TEXT               # Применение стилей из конфигурации
         )
-        self.update_balance()                      # Первичное обновление баланса
+        # self.update_balance()                      # Первичное обновление баланса
 
         # Создание директории для экспорта истории чата
         self.exports_dir = "exports"               # Путь к директории экспорта
@@ -99,11 +100,13 @@ class ChatApp:
             setattr(page, key, value)
 
         AppStyles.set_window_size(page)    # Установка размеров окна приложения
-
-        # Инициализация выпадающего списка для выбора модели AI
-        models = self.api_client.available_models
-        self.model_dropdown = ModelSelector(models)
-        self.model_dropdown.value = models[0] if models else None
+        
+        def init_main():
+            self.api_client = OpenRouterClient()       # Создание клиента для работы с AI API
+            self.cache = ChatCache()                   # Инициализация системы кэширования
+            self.logger = AppLogger()                  # Инициализация системы логирования
+            self.analytics = Analytics(self.cache)     # Инициализация системы аналитики с передачей кэша
+            self.monitor = PerformanceMonitor()        # Инициализация системы мониторинга
 
         async def send_message_click(e):
             """
@@ -335,95 +338,180 @@ class ChatApp:
             except Exception as e:
                 self.logger.error(f"Ошибка сохранения: {e}")
                 show_error_snack(page, f"Ошибка сохранения: {str(e)}")
+                
+        def auth_event(e):
+            
+            if e.control.data == 'set_api_key':
+                self.cache.set_auth_key(self.auth_api_input.value, self.auth_password_input.value)
 
-    
+            key = self.cache.get_auth_key(self.auth_password_input.value)
+            
+            if len(key) == 0:
+                show_error_snack(page, 'Неверный пароль')
+                return
 
-        # Создание компонентов интерфейса
-        self.message_input = ft.TextField(**AppStyles.MESSAGE_INPUT) # Поле ввода
-        self.chat_history = ft.ListView(**AppStyles.CHAT_HISTORY)    # История чата
-
-        # Загрузка существующей истории
-        self.load_chat_history()
-
-        # Создание кнопок управления
-        save_button = ft.ElevatedButton(
-            on_click=save_dialog,           # Привязка функции сохранения
-            **AppStyles.SAVE_BUTTON         # Применение стилей
-        )
-
-        clear_button = ft.ElevatedButton(
-            on_click=confirm_clear_history, # Привязка функции очистки
-            **AppStyles.CLEAR_BUTTON        # Применение стилей
-        )
-
-        send_button = ft.ElevatedButton(
-            on_click=send_message_click,    # Привязка функции отправки
-            **AppStyles.SEND_BUTTON         # Применение стилей
-        )
-
-        analytics_button = ft.ElevatedButton(
-            on_click=show_analytics,        # Привязка функции аналитики
-            **AppStyles.ANALYTICS_BUTTON    # Применение стилей
-        )
-
-        # Создание layout компонентов
+            self.api_client = OpenRouterClient(key[0][0])
+            page.remove(self.main_column)
+            self.update_balance()
+            main_content()
+            page.add(self.main_column)
         
-        # Создание ряда кнопок управления
-        control_buttons = ft.Row(  
-            controls=[                      # Размещение кнопок в ряд
-                save_button,
-                analytics_button,
-                clear_button
-            ],
-            **AppStyles.CONTROL_BUTTONS_ROW # Применение стилей к ряду
-        )
+        def clear_api_key_event(e):
+            self.cache.clear_auth()
+            page.remove(self.main_column)
+            auth_content()
+            page.add(self.main_column)
+            
 
-        # Создание строки ввода с кнопкой отправки
-        input_row = ft.Row(
-            controls=[                      # Размещение элементов ввода
-                self.message_input,
-                send_button
-            ],
-            **AppStyles.INPUT_ROW           # Применение стилей к строке ввода
-        )
+        def main_content():
+            # Инициализация выпадающего списка для выбора модели AI
+            models = self.api_client.available_models
+            self.model_dropdown = ModelSelector(models)
+            self.model_dropdown.value = models[0] if models else None
 
-        # Создание колонки для элементов управления
-        controls_column = ft.Column(
-            controls=[                      # Размещение элементов управления
-                input_row,
-                control_buttons
-            ],
-            **AppStyles.CONTROLS_COLUMN     # Применение стилей к колонке
-        )
+            # Создание компонентов интерфейса
+            self.message_input = ft.TextField(**AppStyles.MESSAGE_INPUT) # Поле ввода
+            self.chat_history = ft.ListView(**AppStyles.CHAT_HISTORY)    # История чата
 
-        # Создание контейнера для баланса
-        balance_container = ft.Container(
-            content=self.balance_text,            # Размещение текста баланса
-            **AppStyles.BALANCE_CONTAINER        # Применение стилей к контейнеру
-        )
+            # Загрузка существующей истории
+            self.load_chat_history()
 
-        # Создание колонки выбора модели
-        model_selection = ft.Column(
-            controls=[                            # Размещение элементов выбора модели
-                self.model_dropdown.search_field,
-                self.model_dropdown,
-                balance_container
-            ],
-            **AppStyles.MODEL_SELECTION_COLUMN   # Применение стилей к колонке
-        )
+            # Создание кнопок управления
+            save_button = ft.ElevatedButton(
+                on_click=save_dialog,           # Привязка функции сохранения
+                **AppStyles.SAVE_BUTTON         # Применение стилей
+            )
 
-                # Создание основной колонки приложения
-        self.main_column = ft.Column(
-            controls=[                            # Размещение основных элементов
-                model_selection,
-                self.chat_history,
-                controls_column
-            ],
-            **AppStyles.MAIN_COLUMN               # Применение стилей к главной колонке
-        )
+            clear_button = ft.ElevatedButton(
+                on_click=confirm_clear_history, # Привязка функции очистки
+                **AppStyles.CLEAR_BUTTON        # Применение стилей
+            )
+
+            send_button = ft.ElevatedButton(
+                on_click=send_message_click,    # Привязка функции отправки
+                **AppStyles.SEND_BUTTON         # Применение стилей
+            )
+
+            analytics_button = ft.ElevatedButton(
+                on_click=show_analytics,        # Привязка функции аналитики
+                **AppStyles.ANALYTICS_BUTTON    # Применение стилей
+            )
+
+            # Создание layout компонентов
+            
+            # Создание ряда кнопок управления
+            control_buttons = ft.Row(  
+                controls=[                      # Размещение кнопок в ряд
+                    save_button,
+                    analytics_button,
+                    clear_button
+                ],
+                **AppStyles.CONTROL_BUTTONS_ROW # Применение стилей к ряду
+            )
+
+            # Создание строки ввода с кнопкой отправки
+            input_row = ft.Row(
+                controls=[                      # Размещение элементов ввода
+                    self.message_input,
+                    send_button
+                ],
+                **AppStyles.INPUT_ROW           # Применение стилей к строке ввода
+            )
+
+            # Создание колонки для элементов управления
+            controls_column = ft.Column(
+                controls=[                      # Размещение элементов управления
+                    input_row,
+                    control_buttons
+                ],
+                **AppStyles.CONTROLS_COLUMN     # Применение стилей к колонке
+            )
+
+            # Создание контейнера для баланса
+            balance_container = ft.Container(
+                content=self.balance_text,            # Размещение текста баланса
+                **AppStyles.BALANCE_CONTAINER        # Применение стилей к контейнеру
+            )
+
+            # Создание колонки выбора модели
+            model_selection = ft.Column(
+                controls=[                            # Размещение элементов выбора модели
+                    self.model_dropdown.search_field,
+                    self.model_dropdown,
+                    balance_container
+                ],
+                **AppStyles.MODEL_SELECTION_COLUMN   # Применение стилей к колонке
+            )
+
+            # Создание основной колонки приложения
+            self.main_column = ft.Column(
+                controls=[                            # Размещение основных элементов
+                    model_selection,
+                    self.chat_history,
+                    controls_column
+                ],
+                # visible=self.api_client.is_auth,
+                **AppStyles.MAIN_COLUMN               # Применение стилей к главной колонке
+            )
+            
+        def auth_content():
+            check_api_key = self.cache.check_auth()
+            title = 'Введите пароль' if check_api_key else 'Введите API-KEY'
+            type_event = 'get_api_key' if check_api_key else 'set_api_key'
+
+            self.auth_api_input = ft.TextField(
+                label="API_KEY",
+                password=True,
+                can_reveal_password=True,
+                **AppStyles.AUTH_INPUT,
+            )
+            self.auth_password_input = ft.TextField(
+                label="Password",
+                password=True,
+                can_reveal_password=True,
+                **AppStyles.AUTH_INPUT,
+            )
+            inputs = [self.auth_password_input]
+
+            if not check_api_key:
+                inputs.insert(0, self.auth_api_input)
+
+            self.auth_button = ft.ElevatedButton(
+                on_click=auth_event,
+                data=type_event,
+                **AppStyles.AUTH_BUTTON
+            )
+            
+            self.clear_api_key_button = ft.ElevatedButton(
+                on_click=clear_api_key_event,
+                **AppStyles.CLEAR_BUTTON_API
+            )
+            
+            buttons = [self.auth_button]
+            
+            if check_api_key:
+                buttons.append(self.clear_api_key_button)
+            
+            row_buttons = ft.Row(
+                controls=buttons,
+                alignment=ft.MainAxisAlignment.START,
+                width=400
+            )
+
+            self.main_column = ft.Column(
+                controls=[AuthContainer(title, inputs, row_buttons)],
+                **AppStyles.MAIN_COLUMN
+            )
+
+
+        if not self.api_client:
+            auth_content()
+            page.add(self.main_column)
+            return
+        
 
         # Добавление основной колонки на страницу
-        page.add(self.main_column)
+        # page.add(self.main_column)
         
         # Запуск монитора
         self.monitor.get_metrics()

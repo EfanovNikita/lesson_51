@@ -46,6 +46,11 @@ class AppStyles:
         "hint_text": "Введите сообщение здесь...",  # Текст-подсказка в пустом поле
         "shift_enter": True,                 # Включение отправки по Shift+Enter
     }
+    
+    AUTH_INPUT = {
+        **MESSAGE_INPUT,
+        "hint_text": ""
+    }
 
     # Настройки кнопки отправки сообщения
     SEND_BUTTON = {
@@ -101,6 +106,32 @@ class AppStyles:
         "tooltip": "Показать аналитику",     # Всплывающая подсказка
         "width": 130,                        # Ширина кнопки
         "height": 40,                        # Высота кнопки
+    }
+    
+    AUTH_BUTTON = {
+        "text": "Войти",
+        "icon": ft.icons.DOOR_FRONT_DOOR,
+        "style": ft.ButtonStyle(
+            color=ft.Colors.WHITE,
+            bgcolor=ft.Colors.BLUE_700,
+            padding=10
+        ),
+        "tooltip": "Авторизироваться в системе",
+        "width": 130,
+        "height": 40
+    }
+    
+    CLEAR_BUTTON_API = {
+        "text": "Новый API-KEY",
+        "icon": ft.icons.KEY,
+        "style": ft.ButtonStyle(
+            color=ft.Colors.WHITE,
+            bgcolor=ft.Colors.GREEN_700,
+            padding=10
+        ),
+        "tooltip": "Записать новый api-key",
+        "width": 130,
+        "height": 40
     }
 
     # Настройки строки с полем ввода и кнопкой отправки

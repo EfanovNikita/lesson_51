@@ -128,3 +128,26 @@ class ModelSelector(ft.Dropdown):
         
         # Обновление интерфейса для отображения отфильтрованного списка
         e.page.update()
+        
+        
+
+class AuthContainer(ft.Container):
+    def __init__(self, text, input_fields, button, set_api_key = True):
+        super().__init__()
+        
+        self.padding = 10
+        
+        self.content = ft.Column(
+            controls=[
+                ft.Text(
+                    value=text,
+                    color=ft.Colors.WHITE,
+                    size=16,
+                    selectable=True,
+                    weight=ft.FontWeight.W_400
+                ),
+                *input_fields,
+                button
+            ],
+            tight=False
+        )

@@ -90,6 +90,14 @@ class ChatCache:
             )
         ''')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS auth (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                api_key TEXT,
+                password INTEGER
+            )
+        ''')
+        
         conn.commit()  # Сохранение изменений в базе
         conn.close()   # Закрытие соединения
 
@@ -239,3 +247,45 @@ class ChatCache:
                 "tokens_used": row[5]      # Использовано токенов
             })
         return history  # Возврат форматированной истории
+    
+    def set_auth_key(self, api_key, password):
+        conn = self.get_connection()  # Получение соединения для текущего потока
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO auth 
+            (api_key, password)
+            VALUES (?, ?)
+        ''', (api_key, password))
+
+        conn.commit()
+
+    def get_auth_key(self, password):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(f'''
+            SELECT api_key
+            FROM auth
+            WHERE password = {password}
+        ''')
+        
+        response = cursor.fetchall()
+        return response
+    
+    def check_auth(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT *
+            FROM auth
+        ''')
+        response = cursor.fetchall()
+        return len(response) > 0
+        
+    def clear_auth(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM auth')
+        conn.commit()
