@@ -94,7 +94,7 @@ class ChatCache:
             CREATE TABLE IF NOT EXISTS auth (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 api_key TEXT,
-                password INTEGER
+                password TEXT
             )
         ''')
         
@@ -264,11 +264,11 @@ class ChatCache:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute(f'''
+        cursor.execute('''
             SELECT api_key
             FROM auth
-            WHERE password = {password}
-        ''')
+            WHERE password = ?
+        ''', (password,))
         
         response = cursor.fetchall()
         return response

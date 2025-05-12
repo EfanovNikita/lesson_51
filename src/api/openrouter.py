@@ -32,7 +32,6 @@ class OpenRouterClient:
         self.logger = AppLogger()
         
         # Получение необходимых параметров из переменных окружения
-        # self.api_key = os.getenv("OPENROUTER_API_KEY")  # API ключ для авторизации
         self.api_key = api_key
         self.base_url = os.getenv("BASE_URL")          # Базовый URL API
         
@@ -49,11 +48,25 @@ class OpenRouterClient:
             "Content-Type": "application/json"          # Указание формата данных
         }
 
+        # Проверяем ключ
+        self.validation_key()
+
         # Логирование успешной инициализации клиента
         self.logger.info("OpenRouterClient initialized successfully")
         
         # Загрузка списка доступных моделей при инициализации
         self.available_models = self.get_models()
+        
+    def validation_key(self):
+        try:
+            response = requests.get(
+                f"{self.base_url}/key",
+                headers=self.headers
+            )
+            if response.status_code == 401:
+                raise ValueError(f'{response.json()["error"]["message"]}')
+        except Exception as e:
+            raise ValueError(f'{e}')
 
     def get_models(self):
         """

@@ -121,6 +121,17 @@ class AppStyles:
         "height": 40
     }
     
+    ACCEPT_BUTTON = {
+        "text": "Ок",
+        "style": ft.ButtonStyle(
+            color=ft.Colors.WHITE,
+            bgcolor=ft.Colors.BLUE_700,
+            padding=10
+        ),
+        "width": 130,
+        "height": 40
+    }
+    
     CLEAR_BUTTON_API = {
         "text": "Новый API-KEY",
         "icon": ft.icons.KEY,

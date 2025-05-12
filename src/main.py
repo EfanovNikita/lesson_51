@@ -1,4 +1,5 @@
 # Импорт необходимых библиотек и модулей
+import random
 import flet as ft                                  # Фреймворк для создания кроссплатформенных приложений с современным UI
 from api.openrouter import OpenRouterClient        # Клиент для взаимодействия с AI API через OpenRouter
 from ui.styles import AppStyles                    # Модуль с настройками стилей интерфейса
@@ -331,17 +332,53 @@ class ChatApp:
                 show_error_snack(page, f"Ошибка сохранения: {str(e)}")
                 
         def auth_event(e):
+            password = ''
+            key = ''
             
-            if e.control.data == 'set_api_key':
-                self.cache.set_auth_key(self.auth_api_input.value, self.auth_password_input.value)
-
-            key = self.cache.get_auth_key(self.auth_password_input.value)
+            if e.control.data == 'get_api_key':
+                password = self.auth_password_input.value
+                key = self.cache.get_auth_key(password)
+                if len(key) == 0:
+                    show_error_snack(page, 'Неверный пароль')
+                    return
+                key = key[0][0]
+            elif e.control.data == 'set_api_key':
+                key = self.auth_api_input.value
             
-            if len(key) == 0:
-                show_error_snack(page, 'Неверный пароль')
+            # Подключаем клиент
+            try:
+                self.api_client = OpenRouterClient(key)   
+            except ValueError as err:
+                show_error_snack(page, f'{err}')
                 return
 
-            self.api_client = OpenRouterClient(key[0][0])
+            # сохраняем ключ и пароль в базу данных
+            if e.control.data == 'set_api_key':
+                # генерируем пароль
+                for i in range(4):
+                    number = random.randint(0, 9)
+                    password = f'{password}{number}'
+
+                self.cache.set_auth_key(self.auth_api_input.value, password)
+
+            if e.control.data == 'get_api_key':
+                change_main_column()
+            else:
+                self.text_password.value = f'Ваш пароль {password}'
+                self.text_password.disabled = False
+                self.text_password.visible = True
+
+                self.accept_change_key.visible = True
+                self.accept_change_key.disabled = False
+
+                self.auth_button.visible = False
+                self.auth_button.disabled = True
+                
+                self.auth_api_input.visible = False
+                self.auth_api_input.disabled = True
+                page.update()
+
+        def change_main_column():
             page.remove(self.main_column)
             self.update_balance()
             main_content()
@@ -442,6 +479,26 @@ class ChatApp:
                 ],
                 **AppStyles.MAIN_COLUMN               # Применение стилей к главной колонке
             )
+
+        def on_change_auth(e):
+            key: str = e.data
+            if (len(key) > 8):
+                if (key.startswith('sk-or-v1')):
+                    self.auth_button.disabled = False
+                else:
+                    self.auth_api_input.error_text = 'Неверный ключ'
+            else:
+                self.auth_button.disabled = True
+                self.auth_api_input.error_text = ''
+            page.update()
+            
+        def on_change_password(e):
+            password = e.data
+            if (len(password) >= 4):
+                self.auth_button.disabled = False
+            else:
+                self.auth_button.disabled = True
+            self.auth_button.update()
             
         def auth_content():
             check_api_key = self.cache.check_auth()
@@ -452,22 +509,27 @@ class ChatApp:
                 label="API_KEY",
                 password=True,
                 can_reveal_password=True,
+                on_change= on_change_auth,
                 **AppStyles.AUTH_INPUT,
             )
+
             self.auth_password_input = ft.TextField(
                 label="Password",
                 password=True,
                 can_reveal_password=True,
+                on_change=on_change_password,
                 **AppStyles.AUTH_INPUT,
             )
-            inputs = [self.auth_password_input]
 
-            if not check_api_key:
-                inputs.insert(0, self.auth_api_input)
+            inputs = [self.auth_password_input if check_api_key else self.auth_api_input]
+
+            self.text_password = ft.Text('', disabled=True, visible=False)
+            inputs.append(self.text_password)
 
             self.auth_button = ft.ElevatedButton(
                 on_click=auth_event,
                 data=type_event,
+                disabled=True,
                 **AppStyles.AUTH_BUTTON
             )
             
@@ -476,14 +538,25 @@ class ChatApp:
                 **AppStyles.CLEAR_BUTTON_API
             )
             
+            self.accept_change_key = ft.ElevatedButton(
+                on_click=lambda e: change_main_column(),
+                visible=False,
+                disabled=True,
+                **AppStyles.ACCEPT_BUTTON,
+            )
+            
             buttons = [self.auth_button]
             
             if check_api_key:
                 buttons.append(self.clear_api_key_button)
-            
-            row_buttons = ft.Row(
-                controls=buttons,
-                alignment=ft.MainAxisAlignment.START,
+            else:
+                buttons.append(self.accept_change_key)
+
+            row_buttons = ft.Container(
+                content = ft.Row(
+                    controls=buttons,
+                    alignment=ft.MainAxisAlignment.START,
+                ),
                 width=400
             )
 
